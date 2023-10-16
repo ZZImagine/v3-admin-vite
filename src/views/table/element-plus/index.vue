@@ -18,49 +18,45 @@ const { paginationData, handleCurrentChange, handleSizeChange } = usePagination(
 const dialogVisible = ref<boolean>(false)
 const formRef = ref<FormInstance | null>(null)
 const formData = reactive({
+  id: null,
+  password: null,
   username: "",
-  password: ""
+  email: "",
+  phone: "",
+  roles: "admin",
+  status: false,
+  address: ""
 })
 const formRules: FormRules = reactive({
   username: [{ required: true, trigger: "blur", message: "请输入用户名" }],
   password: [{ required: true, trigger: "blur", message: "请输入密码" }]
 })
 const handleCreate = () => {
+  console.log("fromdata", formData)
   formRef.value?.validate((valid: boolean, fields) => {
     if (valid) {
-      if (currentUpdateId.value === undefined) {
-        createTableDataApi(formData)
-          .then(() => {
-            ElMessage.success("新增成功")
-            getTableData()
-          })
-          .finally(() => {
-            dialogVisible.value = false
-          })
-      } else {
-        updateTableDataApi({
-          id: currentUpdateId.value,
-          username: formData.username
+      updateTableDataApi(formData)
+        .then(() => {
+          ElMessage.success("插入更新成功")
+          getTableData()
         })
-          .then(() => {
-            ElMessage.success("修改成功")
-            getTableData()
-          })
-          .finally(() => {
-            dialogVisible.value = false
-          })
-      }
+        .finally(() => {
+          dialogVisible.value = false
+        })
     } else {
       console.error("表单校验不通过", fields)
     }
   })
 }
 const resetForm = () => {
-  currentUpdateId.value = undefined
+  formData.id = null
   formData.username = ""
-  formData.password = ""
+  formData.roles = "admin"
+  formData.address = ""
+  formData.email = ""
+  formData.phone = ""
+  formData.status = false
 }
-//#endregion
 
 //#region 删
 const handleDelete = (row: GetTableData) => {
@@ -78,10 +74,21 @@ const handleDelete = (row: GetTableData) => {
 //#endregion
 
 //#region 改
-const currentUpdateId = ref<undefined | string>(undefined)
 const handleUpdate = (row: GetTableData) => {
-  currentUpdateId.value = row.id
+  console.log("row:", row)
+  formData.id = row.id
   formData.username = row.username
+  formData.roles = row.roles
+  formData.address = row.address
+  formData.email = row.email
+  formData.phone = row.phone
+  formData.status = row.status
+  dialogVisible.value = true
+}
+//#endregion
+
+const handleAdd = () => {
+  resetForm()
   dialogVisible.value = true
 }
 //#endregion
@@ -96,10 +103,10 @@ const searchData = reactive({
 const getTableData = () => {
   loading.value = true
   getTableDataApi({
-    currentPage: paginationData.currentPage,
-    size: paginationData.pageSize,
-    username: searchData.username || undefined,
-    phone: searchData.phone || undefined
+    pageNum: paginationData.currentPage,
+    pageSize: paginationData.pageSize,
+    username: searchData.username,
+    phone: searchData.phone
   })
     .then((res) => {
       paginationData.total = res.data.total
@@ -144,7 +151,7 @@ watch([() => paginationData.currentPage, () => paginationData.pageSize], getTabl
     <el-card v-loading="loading" shadow="never">
       <div class="toolbar-wrapper">
         <div>
-          <el-button type="primary" :icon="CirclePlus" @click="dialogVisible = true">新增用户</el-button>
+          <el-button type="primary" :icon="CirclePlus" @click="handleAdd">新增用户</el-button>
           <el-button type="danger" :icon="Delete">批量删除</el-button>
         </div>
         <div>
@@ -159,7 +166,9 @@ watch([() => paginationData.currentPage, () => paginationData.pageSize], getTabl
       <div class="table-wrapper">
         <el-table :data="tableData">
           <el-table-column type="selection" width="50" align="center" />
+          <el-table-column prop="id" label="ID" align="center" />
           <el-table-column prop="username" label="用户名" align="center" />
+          <el-table-column prop="password" label="密码" align="center" />
           <el-table-column prop="roles" label="角色" align="center">
             <template #default="scope">
               <el-tag v-if="scope.row.roles === 'admin'" effect="plain">admin</el-tag>
@@ -174,6 +183,7 @@ watch([() => paginationData.currentPage, () => paginationData.pageSize], getTabl
               <el-tag v-else type="danger" effect="plain">禁用</el-tag>
             </template>
           </el-table-column>
+          <el-table-column prop="address" label="地址" align="center" />
           <el-table-column prop="createTime" label="创建时间" align="center" />
           <el-table-column fixed="right" label="操作" width="150" align="center">
             <template #default="scope">
@@ -199,16 +209,36 @@ watch([() => paginationData.currentPage, () => paginationData.pageSize], getTabl
     <!-- 新增/修改 -->
     <el-dialog
       v-model="dialogVisible"
-      :title="currentUpdateId === undefined ? '新增用户' : '修改用户'"
-      @close="resetForm"
+      :title="formData.id === undefined || formData.id === null ? '新增用户' : '修改用户'"
       width="30%"
     >
       <el-form ref="formRef" :model="formData" :rules="formRules" label-width="100px" label-position="left">
         <el-form-item prop="username" label="用户名">
           <el-input v-model="formData.username" placeholder="请输入" />
         </el-form-item>
-        <el-form-item prop="password" label="密码" v-if="currentUpdateId === undefined">
+        <el-form-item prop="password" label="密码" v-if="formData.id === undefined || formData.id === null">
           <el-input v-model="formData.password" placeholder="请输入" />
+        </el-form-item>
+        <el-form-item label="状态">
+          <el-radio-group v-model="formData.status" class="ml-4">
+            <el-radio :label="true" size="large">启用</el-radio>
+            <el-radio :label="false" size="large">禁止</el-radio>
+          </el-radio-group>
+        </el-form-item>
+        <el-form-item prop="roles" label="角色">
+          <el-radio-group v-model="formData.roles" class="ml-4">
+            <el-radio label="admin" size="large">admin</el-radio>
+            <el-radio label="editor" size="large">editor</el-radio>
+          </el-radio-group>
+        </el-form-item>
+        <el-form-item label="手机号码">
+          <el-input v-model="formData.phone" placeholder="请输入" />
+        </el-form-item>
+        <el-form-item label="邮箱">
+          <el-input v-model="formData.email" placeholder="请输入" />
+        </el-form-item>
+        <el-form-item label="地址">
+          <el-input v-model="formData.address" placeholder="请输入" />
         </el-form-item>
       </el-form>
       <template #footer>

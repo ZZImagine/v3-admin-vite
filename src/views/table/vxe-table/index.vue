@@ -158,8 +158,8 @@ const xGridOpt: VxeGridProps = reactive({
           const params = {
             username: form.username || undefined,
             phone: form.phone || undefined,
-            size: page.pageSize,
-            currentPage: page.currentPage
+            pageSize: page.pageSize,
+            pageNum: page.currentPage
           }
           /** 调用接口 */
           getTableDataApi(params).then(callback).catch(callback)
